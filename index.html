@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>doohickey visualizer</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            cursor: pointer;
+            user-select: none;
+        }
+        canvas {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .instruction {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+        .playing .instruction {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body onclick="toggleMusic()">
+
+    <div class="instruction" id="ui">
+        <h1>click to start the visualizer</h1>
+        <p>doohickey type music.mp3</p>
+    </div>
+
+    <canvas id="visualizer"></canvas>
+
+    <audio id="audio" loop>
+        <source src="doohickey type music.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const audio = document.getElementById('audio');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        const ui = document.getElementById('ui');
+
+        let audioCtx;
+        let analyser;
+        let source;
+        let dataArray;
+        let animationId;
+
+        // setup canvas size
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.onresize = resize;
+        resize();
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            source = audioCtx.createMediaElementSource(audio);
+            source.connect(analyser);
+            analyser.connect(audioCtx.destination);
+
+            // 50 bars requires a small fft size
+            analyser.fftSize = 128; 
+            const bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+        }
+
+        function draw() {
+            animationId = requestAnimationFrame(draw);
+            analyser.getByteFrequencyData(dataArray);
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // slight trail effect
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const barCount = 50;
+            const barWidth = canvas.width / barCount;
+            
+            for (let i = 0; i < barCount; i++) {
+                // scale frequency data to canvas height
+                const barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
+
+                // color based on height (hue shifts as it gets taller)
+                const hue = 200 + (dataArray[i] / 255) * 100; 
+                ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
+
+                // draw the bar centered vertically or from bottom
+                ctx.fillRect(
+                    i * barWidth, 
+                    canvas.height - barHeight, 
+                    barWidth - 2, 
+                    barHeight
+                );
+            }
+        }
+
+        function toggleMusic() {
+            if (!audioCtx) initAudio();
+
+            if (audio.paused) {
+                audio.play();
+                document.body.classList.add('playing');
+                draw();
+            } else {
+                audio.pause();
+                document.body.classList.remove('playing');
+                cancelAnimationFrame(animationId);
+            }
+        }
+    </script>
+</body>
+</html>
