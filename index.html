@@ -31,6 +31,9 @@
             text-align: center;
             transition: opacity 0.5s;
             pointer-events: none;
+            background: rgba(0,0,0,0.5);
+            padding: 20px;
+            border-radius: 10px;
         }
         .playing .instruction {
             opacity: 0;
@@ -40,8 +43,8 @@
 <body onclick="toggleMusic()">
 
     <div class="instruction" id="ui">
-        <h1>click to start the visualizer</h1>
-        <p>doohickey type music.mp3</p>
+        <h1>click for 500-line doohickey</h1>
+        <p>track: doohickey type music.mp3</p>
     </div>
 
     <canvas id="visualizer"></canvas>
@@ -62,7 +65,6 @@
         let dataArray;
         let animationId;
 
-        // setup canvas size
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -77,8 +79,8 @@
             source.connect(analyser);
             analyser.connect(audioCtx.destination);
 
-            // 50 bars requires a small fft size
-            analyser.fftSize = 128; 
+            // fftSize of 1024 gives 512 frequency bins
+            analyser.fftSize = 1024; 
             const bufferLength = analyser.frequencyBinCount;
             dataArray = new Uint8Array(bufferLength);
         }
@@ -87,26 +89,31 @@
             animationId = requestAnimationFrame(draw);
             analyser.getByteFrequencyData(dataArray);
 
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // slight trail effect
+            ctx.fillStyle = 'black';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            const barCount = 50;
-            const barWidth = canvas.width / barCount;
+            const lineCount = 500;
+            const lineWidth = canvas.width / lineCount;
             
-            for (let i = 0; i < barCount; i++) {
-                // scale frequency data to canvas height
-                const barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
+            for (let i = 0; i < lineCount; i++) {
+                // dataArray[i] holds the volume of that frequency
+                const val = dataArray[i];
+                const height = (val / 255) * canvas.height * 0.9;
 
-                // color based on height (hue shifts as it gets taller)
-                const hue = 200 + (dataArray[i] / 255) * 100; 
-                ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
+                // color: hue shifts from 180 (cyan) to 300 (magenta/purple) based on height
+                const hue = 180 + (val / 255) * 120;
+                ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                
+                // optional: adds a little bloom/glow to the lines
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
 
-                // draw the bar centered vertically or from bottom
+                // drawing the thin lines
                 ctx.fillRect(
-                    i * barWidth, 
-                    canvas.height - barHeight, 
-                    barWidth - 2, 
-                    barHeight
+                    i * lineWidth, 
+                    canvas.height - height, 
+                    lineWidth - 0.5, // tiny gap for "line" definition
+                    height
                 );
             }
         }
